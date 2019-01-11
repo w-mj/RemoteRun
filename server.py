@@ -7,7 +7,7 @@ import argparse
 import struct
 
 magic_string = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
-
+ws = False
 
 def pack_msg(msg):
     """
@@ -15,6 +15,8 @@ def pack_msg(msg):
     :param msg: 要包装的数据 bytes
     :return: 包装后的数据 bytes
     """
+    if not ws:
+        return msg
     token = b"\x81"
     length = len(msg)
     if length < 126:
@@ -34,6 +36,8 @@ def unpack_msg(info):
     :param info: 原始数据 bytes
     :return: 解包后数据部分 bytes
     """
+    if not ws:
+        return info
     if info[0] & 0x0f == 8:  # 关闭连接
         return bytes()
     payload_len = info[1] & 127
@@ -91,11 +95,14 @@ def run_task(task, address, restart):
                 if remote_address is not None:
                     temp, tempa = sock.accept()
                     print('refuse connect {}'.format(tempa))
-                    temp.send("server is already connected on {}".format(remote_address).encode())
+                    temp.send(pack_msg("server is already connected on {}".format(remote_address).encode()))
                     temp.close()
                 else:
                     remote_socket, remote_address = sock.accept()
                     print('remote connected on {}'.format(remote_address))
+                    inputs.append(remote_socket)
+                    if not ws:
+                        continue
                     data = remote_socket.recv(4096)
                     headers = get_headers(data)  # 提取请求头信息
                     # 对请求头中的sec-websocket-key进行加密
@@ -109,7 +116,6 @@ def run_task(task, address, restart):
                     response_str = response_tpl % (ac.decode('utf-8'), headers['Host'], headers['url'])
                     # 响应【握手】信息
                     remote_socket.send(bytes(response_str, encoding='utf-8'))
-                    inputs.append(remote_socket)
             elif s == remote_socket:  # receive
                 data = s.recv(8096)
                 if not data:
@@ -144,8 +150,10 @@ if __name__ == '__main__':
     parser.add_argument("task", help="要执行的任务")
     parser.add_argument("-a", "--address", help="本地服务器监听地址 ip:port", default="0.0.0.0:9090")
     parser.add_argument("-s", "--autostart", help="任务结束后是否自动重新启动", action="store_true")
+    parser.add_argument("-w", "--websocket", help="以websocket方式传递数据", action="store_true")
     args = parser.parse_args()
     ip = args.address.split(':')
     port = int(ip[1])
     ip = ip[0]
+    ws = args.websocket
     run_task(args.task.split(), (ip, port), args.autostart)
