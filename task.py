@@ -14,4 +14,8 @@ if __name__ == '__main__':
                 b.append(0)
             print(b[0] + b[1])
         except EOFError:
+            print("exit")
             exit(0)
+        except Exception as e:
+            print("exit2")
+            print(e)

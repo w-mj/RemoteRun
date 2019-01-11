@@ -101,9 +101,8 @@ def selectedStdio(where=sys):
             data = self.s_in.recv(4096)
             return data
 
-    # TODO: readline
+        def fileno(self):
+            return self.STDOUT_FILENO
 
-    """
-    """
     stdio = Console()
     return stdio

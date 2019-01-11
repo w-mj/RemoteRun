@@ -5,16 +5,18 @@ from select import select
 import socket
 import argparse
 import struct
-import sys
-import selectedStdio
-
 
 magic_string = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
+
 def pack_msg(msg):
-    msg_bytes = msg.encode()
+    """
+    包装成websocket格式
+    :param msg: 要包装的数据 bytes
+    :return: 包装后的数据 bytes
+    """
     token = b"\x81"
-    length = len(msg_bytes)
+    length = len(msg)
     if length < 126:
         token += struct.pack("B", length)
     elif length <= 0xFFFF:
@@ -22,10 +24,18 @@ def pack_msg(msg):
     else:
         token += struct.pack("!BQ", 127, length)
 
-    msg = token + msg_bytes
+    msg = token + msg
     return msg
 
+
 def unpack_msg(info):
+    """
+    从websockets格式解包
+    :param info: 原始数据 bytes
+    :return: 解包后数据部分 bytes
+    """
+    if info[0] & 0x0f == 8:  # 关闭连接
+        return bytes()
     payload_len = info[1] & 127
     if payload_len == 126:
         extend_payload_len = info[2:4]
@@ -44,8 +54,7 @@ def unpack_msg(info):
     for i in range(len(decoded)):
         chunk = decoded[i] ^ mask[i % 4]
         bytes_list.append(chunk)
-    body = str(bytes_list, encoding='utf-8')
-    return body
+    return bytes(bytes_list)
 
 
 def get_headers(data):
@@ -74,12 +83,11 @@ def run_task(task, address, restart):
     remote_socket = None
     remote_address = None
 
-    subp_out = selectedStdio.selectedStdio(subp).s_out
-    inputs = [sock, subp_out]
+    inputs = [sock, subp.stdout, subp.stderr]
     while True:
         readable, writable, exceptional = select(inputs, [], [])
         for s in readable:
-            if s == sock:
+            if s == sock:  # connect
                 if remote_address is not None:
                     temp, tempa = sock.accept()
                     print('refuse connect {}'.format(tempa))
@@ -88,7 +96,7 @@ def run_task(task, address, restart):
                 else:
                     remote_socket, remote_address = sock.accept()
                     print('remote connected on {}'.format(remote_address))
-                    data = remote_socket.recv(1024)
+                    data = remote_socket.recv(4096)
                     headers = get_headers(data)  # 提取请求头信息
                     # 对请求头中的sec-websocket-key进行加密
                     response_tpl = "HTTP/1.1 101 Switching Protocols\r\n" \
@@ -102,7 +110,7 @@ def run_task(task, address, restart):
                     # 响应【握手】信息
                     remote_socket.send(bytes(response_str, encoding='utf-8'))
                     inputs.append(remote_socket)
-            elif s == remote_socket:
+            elif s == remote_socket:  # receive
                 data = s.recv(8096)
                 if not data:
                     inputs.remove(s)
@@ -111,19 +119,21 @@ def run_task(task, address, restart):
                     remote_address = None
                     s.close()
                 else:
+                    print(data)
                     data = unpack_msg(data)
                     print('remote message: {}'.format(data))
                     subp.stdin.write(data)
                     subp.stdin.flush()
             else:
                 if remote_address is not None:
-                    data = subp_out.recv(1024)
+                    data = subp.stdout.readline()
                     if not data:
                         if restart:
                             subp = subprocess.Popen(task, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                                     stderr=subprocess.PIPE)
                         else:
-                            remote_socket.send('task closed.'.encode())
+                            print("task closed")
+                            remote_socket.send(pack_msg('task closed.'.encode()))
                             return
                     print('local response: {}'.format(data))
                     remote_socket.send(pack_msg(data))

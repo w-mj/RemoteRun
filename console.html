@@ -7,6 +7,7 @@
         #screen {
             width: 1000px;
             height: 500px;
+            border: solid;
         }
         #keyboard {
             width: 940px;
@@ -15,7 +16,7 @@
     <script>
         ws = null;
         function connect() {
-            url = document.getElementById("addr").getAttribute("value");
+            url = document.getElementById("addr").value;
             url = 'ws://' + url;
             console.log("connected to " + url);
             ws = new WebSocket(url);
@@ -23,9 +24,18 @@
                 console.log("websocket open.");
             };
             ws.onmessage = function (evt) {
-                msg = evt.data;
-                document.getElementById('screen').appendChild("<p>" + msg + "</p>")
+                let msg = evt.data;
+                console.log('receive : ' + msg);
+                let new_node = document.createElement('p');
+                new_node.innerText = msg;
+                document.getElementById('screen').appendChild(new_node);
             };
+        }
+        function send() {
+            if (ws === null)
+                return;
+            text = document.getElementById("keyboard").value + '\n';
+            ws.send(text)
         }
     </script>
 </head>
@@ -34,13 +44,11 @@
 <button onclick="connect()">Connect</button>
 <br/>
 <br/>
-<div>
-    <label for="screen"></label><textarea id="screen"></textarea>
+<div id="screen"></div>
 <br/>
-</div>
 
-<label for="keyboard"></label><input type="text" id="keyboard">
-<button>Submit</button>
+<label for="keyboard"></label><input type="text" id="keyboard" value="123">
+<button onclick="send()">Submit</button>
 
 </body>
 </html>
