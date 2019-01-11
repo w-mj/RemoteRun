@@ -18,8 +18,6 @@ optional arguments:
 
 运行本程序将产生一个socket服务，其他程序连接后即可直接交互。
 
-
-
-## TODO:
-
-+ websocket
+## Reference
++ [Windows Python select标准输入输出](http://www.ideawu.net/blog/archives/508.html)
++ [websocket](http://python.jobbole.com/88207/)

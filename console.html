@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Console</title>
+    <style>
+        #screen {
+            width: 1000px;
+            height: 500px;
+        }
+        #keyboard {
+            width: 940px;
+        }
+    </style>
+    <script>
+        ws = null;
+        function connect() {
+            url = document.getElementById("addr").getAttribute("value");
+            url = 'ws://' + url;
+            console.log("connected to " + url);
+            ws = new WebSocket(url);
+            ws.onopen = function (evt) {
+                console.log("websocket open.");
+            };
+            ws.onmessage = function (evt) {
+                msg = evt.data;
+                document.getElementById('screen').appendChild("<p>" + msg + "</p>")
+            };
+        }
+    </script>
+</head>
+<body>
+<label for="addr"></label><input type="text" id="addr" value="127.0.0.1:9090">
+<button onclick="connect()">Connect</button>
+<br/>
+<br/>
+<div>
+    <label for="screen"></label><textarea id="screen"></textarea>
+<br/>
+</div>
+
+<label for="keyboard"></label><input type="text" id="keyboard">
+<button>Submit</button>
+
+</body>
+</html>
