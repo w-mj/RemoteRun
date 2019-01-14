@@ -13,7 +13,7 @@ if __name__ == '__main__':
     ip = args.address.split(':')
     port = int(ip[1])
     ip = ip[0]
-    if args.method == "h":
+    if args.method == "http":
         s = Server()
         Thread(target=s.run_task, args=(args.task.split(), ('127.0.0.1', 0), args.autostart)).start()
         local_port = s.port
@@ -22,5 +22,5 @@ if __name__ == '__main__':
         hs = Http(('127.0.0.1', local_port), (ip, port))
     else:
         s = Server()
-        s.ws = args.method == "w"
+        s.ws = args.method == "websocket"
         s.run_task(args.task.split(), (ip, port), args.autostart)
